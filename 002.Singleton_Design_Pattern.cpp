@@ -8,7 +8,7 @@ class GameSetting{
 	int _brightness;
 	int _width;
 	int _height;
-	GameSetting() : _width(786), _height(1300), _brightness(75){}
+	GameSetting() : _width(100), _height(1200), _brightness(10){}
 	// all constructors should be private or public(iff you want to allow inheritance)
 
 public:
