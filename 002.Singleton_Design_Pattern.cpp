@@ -4,6 +4,7 @@
 using namespace std;
 
 class GameSetting{
+private :	
 	static GameSetting* _instance;
 	int _brightness;
 	int _width;
