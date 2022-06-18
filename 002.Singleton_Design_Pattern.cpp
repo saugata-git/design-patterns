@@ -1,55 +1,125 @@
-#include <iostream>
-#include <string>
 
-using namespace std;
+/////////////////// Ordinary Lazy Implementation--Thread Insecurity//////////////////
+#include <iostream> // std::cout
+#include <mutex>    // std::mutex
+#include <pthread.h> // pthread_create
 
-class GameSetting{
-private:	
-	static GameSetting* _instance;
-	int _brightness;
-	int _width;
-	int _height;
-	GameSetting() : _width(100), _height(1200), _brightness(10){}
-	// all constructors should be private or public(iff you want to allow inheritance)
+class SingleInstance
+{
 
 public:
-	static GameSetting* getInstace() {
-		if(_instance == NULL) 
-			_instance = new GameSetting();
-		return _instance;
-	}
-	void setWidth(int width) {_width = width;}
-	void setHeight(int height) {_height = height;}
-	void setBrighness(int brightness) {_brightness = brightness;}
+    // Getting singleton objects
+    static SingleInstance *GetInstance();
 
-	int getWidth() {return _width;}
-	int getHeight() {return _height;}
-	int getBrightness() {return _brightness;}
-	void displaySetting() {
-		cout << "brightness: " << _brightness << endl;
-		cout << "height: " << _height << endl;
-		cout << "width: " << _width << endl << endl;
-	}
+    // Release the singleton and call it when the process exits
+    static void deleteInstance();
+    
+    // Print singleton address
+    void Print();
+
+private:
+    // Construct and analyze it as private, prohibit external structure and Deconstruction
+    SingleInstance();
+    ~SingleInstance();
+
+    // Construct its copy construction and assignment into private functions, forbid external copy and assignment
+    SingleInstance(const SingleInstance &signal);
+    const SingleInstance &operator=(const SingleInstance &signal);
+
+private:
+    // Unique singleton object pointer
+    static SingleInstance *m_SingleInstance;
 };
 
-GameSetting * GameSetting::_instance = NULL;
+//Initialize static member variables
+SingleInstance *SingleInstance::m_SingleInstance = NULL;
 
-void someFunction () {
-	GameSetting *setting = GameSetting::getInstace();
-	setting->displaySetting();
+SingleInstance* SingleInstance::GetInstance()
+{
+
+    if (m_SingleInstance == NULL)
+    {
+        m_SingleInstance = new (std::nothrow) SingleInstance;  // Threads are insecure without locking, and multiple instances are created when threads are concurrent
+    }
+
+    return m_SingleInstance;
 }
 
-int main() {
-
-	GameSetting *setting = GameSetting::getInstace();
-	setting->displaySetting();
-	setting->setBrighness(100);
-	
-	someFunction();
-	return 0;
+void SingleInstance::deleteInstance()
+{
+    if (m_SingleInstance)
+    {
+        delete m_SingleInstance;
+        m_SingleInstance = NULL;
+    }
 }
 
+void SingleInstance::Print()
+{
+    std::cout << "My instance memory address is:" << this << std::endl;
+}
 
+SingleInstance::SingleInstance()
+{
+    std::cout << "Constructor" << std::endl;
+}
+
+SingleInstance::~SingleInstance()
+{
+    std::cout << "Destructive function" << std::endl;
+}
+/////////////////// Ordinary Lazy Implementation--Thread Insecurity//////////////////
+
+// Thread function
+void *PrintHello(void *threadid)
+{
+    // Main threads and sub-threads are separated, and they do not interfere with each other. At the same time, sub-threads end and the resources of sub-threads are automatically recovered.
+    pthread_detach(pthread_self());
+
+    // Mandatory type conversion of incoming parameters, from untyped pointer to integer pointer, and then read
+    int tid = *((int *)threadid);
+
+    std::cout << "Hi, I am a thread ID:[" << tid << "]" << std::endl;
+
+    // Print instance address
+    SingleInstance::GetInstance()->Print();
+
+    pthread_exit(NULL);
+}
+
+#define NUM_THREADS 5// Number of Threads
+
+int main(void)
+{
+    pthread_t threads[NUM_THREADS] = {0};
+    int indexes[NUM_THREADS] = {0}; // Save the value of i with an array
+
+    int ret = 0;
+    int i = 0;
+
+    std::cout << "main() : start ... " << std::endl;
+
+    for (i = 0; i < NUM_THREADS; i++)
+    {
+        std::cout << "main() : Create threads:[" << i << "]" << std::endl;
+        
+        indexes[i] = i; //Save the value of i first
+        
+        // When passing in, you must cast to void* type, that is, untyped pointer
+        ret = pthread_create(&threads[i], NULL, PrintHello, (void *)&(indexes[i]));
+        if (ret)
+        {
+            std::cout << "Error:cannot create thread," << ret << std::endl;
+            exit(-1);
+        }
+    }
+
+    // Manual release of single instance resources
+    SingleInstance::deleteInstance();
+    std::cout << "main() : End! " << std::endl;
+    
+    return 0;
+}
 
 
 
